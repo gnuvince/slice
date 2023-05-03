@@ -1,12 +1,13 @@
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
+use std::num::ParseIntError;
 use std::path::PathBuf;
 
 fn main() -> anyhow::Result<()> {
     let mut pargs = pico_args::Arguments::from_env();
     if pargs.contains(["-h", "--help"]) {
         println!(
-            "Usage: {} --from=<offset> --to=<offset> <filename>",
+            "Usage: {} <filename> <start offset> <end offset>",
             env!("CARGO_BIN_NAME")
         );
         return Ok(());
@@ -17,9 +18,9 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let start: u64 = pargs.value_from_str(["-f", "--from"])?;
-    let endx: u64 = pargs.value_from_str(["-t", "--to"])?;
     let filename: PathBuf = pargs.free_from_str()?;
+    let start: u64 = pargs.free_from_fn(hex_or_dec)?;
+    let endx: u64 = pargs.free_from_fn(hex_or_dec)?;
 
     let f = File::open(filename)?;
     let mut reader = BufReader::new(f);
@@ -42,4 +43,12 @@ fn main() -> anyhow::Result<()> {
     }
 
     return Ok(());
+}
+
+fn hex_or_dec(s: &str) -> Result<u64, ParseIntError> {
+    if s.starts_with("0x") || s.starts_with("0X") {
+        u64::from_str_radix(&s[2..], 16)
+    } else {
+        u64::from_str_radix(s, 10)
+    }
 }
