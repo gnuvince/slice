@@ -24,23 +24,12 @@ fn main() -> anyhow::Result<()> {
 
     let f = File::open(filename)?;
     let mut reader = BufReader::new(f);
-    reader.seek(SeekFrom::Start(start))?;
+
     let stdout = io::stdout();
     let stdout = stdout.lock();
     let mut stdout = BufWriter::new(stdout);
-    let mut buf: [u8; 4096] = [0; 4096];
-    let mut remaining: usize = endx.saturating_sub(start) as usize;
-    loop {
-        let n = reader.read(&mut buf)?;
-        if n == 0 {
-            break;
-        } else if n > remaining {
-            stdout.write_all(&mut buf[..remaining])?;
-        } else {
-            stdout.write_all(&mut buf[..n])?;
-            remaining -= n;
-        }
-    }
+
+    copy_slice(&mut reader, &mut stdout, start, endx)?;
 
     return Ok(());
 }
@@ -50,5 +39,70 @@ fn hex_or_dec(s: &str) -> Result<u64, ParseIntError> {
         u64::from_str_radix(&s[2..], 16)
     } else {
         u64::from_str_radix(s, 10)
+    }
+}
+
+fn copy_slice<R: Read + Seek, W: Write>(
+    src: &mut R,
+    dst: &mut W,
+    start: u64,
+    endx: u64,
+) -> io::Result<()> {
+    src.seek(SeekFrom::Start(start))?;
+    let mut buf: [u8; 4096] = [0; 4096];
+    let mut remaining: usize = endx.saturating_sub(start) as usize;
+    loop {
+        let n = src.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        let upto = usize::min(remaining, n);
+        dst.write_all(&mut buf[..upto])?;
+        remaining -= upto;
+    }
+
+    return Ok(());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::copy_slice;
+    use std::io::Cursor;
+
+    #[test]
+    fn test_copy_slice() {
+        let mut r = Cursor::new(b"hello".to_vec());
+        let mut w = Vec::new();
+
+        copy_slice(&mut r, &mut w, 0, 5).unwrap();
+        assert_eq!(w, b"hello");
+
+        w.clear();
+        copy_slice(&mut r, &mut w, 0, 4).unwrap();
+        assert_eq!(w, b"hell");
+
+        w.clear();
+        copy_slice(&mut r, &mut w, 1, 4).unwrap();
+        assert_eq!(w, b"ell");
+
+        w.clear();
+        copy_slice(&mut r, &mut w, 1, 2).unwrap();
+        assert_eq!(w, b"e");
+
+        w.clear();
+        copy_slice(&mut r, &mut w, 1, 1).unwrap();
+        assert_eq!(w, b"");
+
+        w.clear();
+        copy_slice(&mut r, &mut w, 1, 0).unwrap();
+        assert_eq!(w, b"");
+
+        w.clear();
+        copy_slice(&mut r, &mut w, 0, 6).unwrap();
+        assert_eq!(w, b"hello");
+
+        w.clear();
+        copy_slice(&mut r, &mut w, 8, 10).unwrap();
+        assert_eq!(w, b"");
     }
 }
