@@ -51,7 +51,7 @@ fn copy_slice<R: Read + Seek, W: Write>(
     src.seek(SeekFrom::Start(start))?;
     let mut buf: [u8; 4096] = [0; 4096];
     let mut remaining: usize = endx.saturating_sub(start) as usize;
-    loop {
+    while remaining != 0 {
         let n = src.read(&mut buf)?;
         if n == 0 {
             break;
