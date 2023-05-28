@@ -7,7 +7,7 @@ fn main() -> anyhow::Result<()> {
     let mut pargs = pico_args::Arguments::from_env();
     if pargs.contains(["-h", "--help"]) {
         println!(
-            "Usage: {} <filename> <start offset> <end offset>",
+            "Usage: {} <filename> [<start offset>] [<end offset>]",
             env!("CARGO_BIN_NAME")
         );
         return Ok(());
@@ -19,8 +19,8 @@ fn main() -> anyhow::Result<()> {
     }
 
     let filename: PathBuf = pargs.free_from_str()?;
-    let start: u64 = pargs.free_from_fn(hex_or_dec)?;
-    let endx: u64 = pargs.free_from_fn(hex_or_dec)?;
+    let start: u64 = pargs.opt_free_from_fn(hex_or_dec)?.unwrap_or(0);
+    let endx: u64 = pargs.opt_free_from_fn(hex_or_dec)?.unwrap_or(u64::MAX);
 
     let f = File::open(filename)?;
     let mut reader = BufReader::new(f);
