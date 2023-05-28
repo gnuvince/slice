@@ -29,3 +29,14 @@ fn zero_offsets() {
         .unwrap();
     assert_eq!(out.stdout, b"abcdefghijklmnopqrstuvwxyz\n");
 }
+
+#[test]
+fn hex_offsets() {
+    let out = Command::new(env!("CARGO_BIN_EXE_slice"))
+        .arg("tests/test00")
+        .arg("0xa")
+        .arg("0X0C")
+        .output()
+        .unwrap();
+    assert_eq!(out.stdout, b"kl");
+}
